@@ -44,6 +44,7 @@ def getStrLen(s, fontSizeSet):
     len_result = cnt * int((fontSizeSet) / 1.2)
     return len_result
 
+# R2L danmaku algorithm
 def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, array):
     velocity = (text_length + resolution_x) / roll_time
     best_row = 0
@@ -75,10 +76,28 @@ def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time,
                 best_bias = bias
                 best_row = i
     return 1 + best_row * font_size
-            
 
+# Bottom danmaku algorithm
+def get_fixed_y(font_size, appear_time, resolution_y, array):
+    best_row = 0
+    best_bias = -1
+    for i in range(array.rows):
+        previous_appear_time = array.get_time(i)
+        if previous_appear_time == 0:
+            array.set_time_length(i, appear_time, 0)
+            return resolution_y - font_size * (i + 1) + 1
+        else:
+            delta_time = appear_time - previous_appear_time
+            if delta_time > 5:
+                array.set_time_length(i, appear_time, 0)
+                return resolution_y - font_size * (i + 1) + 1
+            else:
+                if delta_time > best_bias:
+                    best_bias = delta_time
+                    best_row = i
+    return resolution_y - font_size * (best_row + 1) + 1
 
-def convert_xml_to_ass(font_size, resolution_x, resolution_y, xml_file, ass_file, array):
+def convert_xml_to_ass(font_size, resolution_x, resolution_y, xml_file, ass_file, roll_array, btm_array):
     # Parse XML
     tree = ET.parse(xml_file)
     root = tree.getroot()
@@ -121,36 +140,47 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             color = int(p_attrs[3])
             color_hex = hex(color)
             color_reverse = ''.join(reversed([color_hex[i:i+2] for i in range(0, len(color_hex), 2)]))
-            # Remove 0x
-            color_hex = color_reverse[:-2].ljust(6, '0').upper()
+            color_hex = color_reverse[:-2].ljust(6, '0').upper() # Remove 0x
             color_text = f"\\c&H{color_hex}"
             
             roll_time = 12
+            fix_time = 5
 
             # Format times
             start_time = format_time(appear_time)
-            end_time = format_time(appear_time + roll_time) # Display for 12 seconds
             
             # Format text
             text = d.text
             
             # For rolling danmakus (most common type)
             if danmaku_type == 1:
+                layer = 0
+                end_time = format_time(appear_time + roll_time)
+                style = "R2L"
                 text_length = getStrLen(text, 38) # Estimate the length of the text
                 x1 = resolution_x + int(text_length / 2)  # Start from right edge
                 x2 = -int(text_length / 2)      # End at left edge
-                y = get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, array)
-                
-                line = f"Dialogue: 0,{start_time},{end_time},R2L,,0000,0000,0000,,{{\\move({x1},{y},{x2},{y})}}{{{color_text}}}{text}\n"
-                f.write(line)
-            elif danmaku_type == 4:
-                pass
+                y = get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, roll_array)
+                effect = f"\\move({x1},{y},{x2},{y})"
+
+            # For BTM danmakus
+            else:
+                layer = 1
+                end_time = format_time(appear_time + fix_time)
+                style = "BTM"
+                x = int(resolution_x / 2)
+                y = get_fixed_y(font_size, appear_time, resolution_y, btm_array)
+                effect = f"\\pos({x},{y})"
+            
+            line = f"Dialogue: {layer},{start_time},{end_time},{style},,0000,0000,0000,,{{{effect}}}{{{color_text}}}{text}\n"
+            f.write(line)
 
 def main():
     xml_file = "sample.xml"
     ass_file = "converted.ass"
-    array = DanmakuArray(720, 1280)
-    convert_xml_to_ass(38, 720, 1280, xml_file, ass_file, array)
+    roll_array = DanmakuArray(720, 1280)
+    btm_array = DanmakuArray(720, 1280)
+    convert_xml_to_ass(38, 720, 1280, xml_file, ass_file, roll_array, btm_array)
 
 if __name__ == "__main__":
     main()
