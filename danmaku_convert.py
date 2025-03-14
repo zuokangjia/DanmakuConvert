@@ -1,48 +1,9 @@
 import re
+import math
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from danmaku_array import DanmakuArray
-
-def format_time(seconds):
-    """Convert seconds to ASS time format (H:MM:SS.cc)"""
-    hours = int(seconds / 3600)
-    minutes = int((seconds % 3600) / 60)
-    seconds = seconds % 60
-    centiseconds = int((seconds % 1) * 100)
-    seconds = int(seconds)
-    return f"{hours}:{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
-
-def is_utf8(s):
-    try:
-        s.decode('utf-8')
-        return True
-    except UnicodeDecodeError:
-        return False
-
-def getStrLen(s, fontSizeSet):
-    if s is None:
-        return -1
-
-    if isinstance(s, bytes):
-        str_bytes = s
-    else:
-        str_bytes = s.encode('utf-8')
-
-    if is_utf8(str_bytes):
-        cnt = 0
-        index = 0
-        while index < len(str_bytes):
-            byte = str_bytes[index]
-            if byte >= 0xC0:
-                cnt += 1
-            elif byte < 0x80:
-                cnt += 1
-            index += 1
-    else:
-        cnt = len(str_bytes)
-
-    len_result = cnt * int((fontSizeSet) / 1.2)
-    return len_result
+from superchat import SuperChat
+from utils import format_time, get_str_len
 
 # R2L danmaku algorithm
 def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, array):
@@ -96,6 +57,90 @@ def get_fixed_y(font_size, appear_time, resolution_y, array):
                     best_bias = delta_time
                     best_row = i
     return resolution_y - font_size * (best_row + 1) + 1
+
+def get_text_line_num(text):
+    line_num = 1
+    result_text = text
+    
+    if len(text) > 10:
+        result_text = ''
+        for i in range(0, len(text), 10):
+            chunk = text[i:i+10]
+            result_text += chunk
+            if i + 10 < len(text):
+                result_text += "\\N"
+                line_num += 1
+    
+    return result_text, line_num
+
+def get_sc_height(line_num, sc_font_size=38):
+    radius = sc_font_size / 2
+    top_box_height = math.ceil(sc_font_size + sc_font_size*(4.0/5.0) + radius/2)
+    btm_box_height = math.ceil(line_num * sc_font_size + radius/2)
+    sc_height = btm_box_height + top_box_height
+    return sc_height, top_box_height, btm_box_height
+
+def draw_superchat(data, ass_path):
+    # get all events
+    events = []
+    for i, (start, end, sc_height, user_name, price, text, btm_box_height, process_record) in enumerate(data):
+        events.append((start, 'start', i))
+        events.append((end, 'end', i))
+
+    # sort events by time
+    events.sort()
+
+    # still alive
+    active = []
+
+    # process each event
+    for time, event_type, index in events:
+        current_start = data[index][0]
+        current_end = data[index][1]
+        if event_type == 'start':
+            # new superchat appears
+            for active_index in active:
+                active_start = data[active_index][0]
+                active_end = data[active_index][1]
+                if active_start <= current_start < active_end:
+                    # if the current superchat appears in the duration of the active superchat
+                    data[active_index][7] += f"-{data[index][2]}@{time} "
+            active.append(index)
+        else:
+            # superchat disappears
+            active.remove(index)
+            for active_index in active:
+                active_start = data[active_index][0]
+                active_end = data[active_index][1]
+                if active_start <= current_start < active_end and time < active_end:
+                    # if the current superchat disappears in the duration of the active superchat
+                    data[active_index][7] += f"+{data[index][2]}@{time} "
+    
+    for i, (start, end, sc_height, user_name, price, text, btm_box_height, result) in enumerate(data):
+        print(f"\nSC {i} ({start}-{end}):")
+        # Initial y coordinate
+        current_y = 1280 - sc_height
+        print(f"Time {start}: y = {current_y}")
+        current_time = start
+
+        # if the position has changed
+        if result:
+            changes = result.strip().split()
+            for change in changes:
+                delta_y, time = change.split('@')
+                prev_time = current_time
+                current_time = float(time)
+                # the shift height
+                height_change = float(delta_y[1:])
+                if delta_y[0] == '-':
+                    current_y -= height_change
+                else:
+                    current_y += height_change
+                print(f"Time {time}: y = {current_y}")
+                SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
+        prev_time = current_time
+        current_time = end
+        SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
 
 def convert_xml_to_ass(font_size, resolution_x, resolution_y, xml_file, ass_file, roll_array, btm_array):
     # Parse XML
@@ -157,7 +202,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 layer = 0
                 end_time = format_time(appear_time + roll_time)
                 style = "R2L"
-                text_length = getStrLen(text, 38) # Estimate the length of the text
+                text_length = get_str_len(text, font_size) # Estimate the length of the text
                 x1 = resolution_x + int(text_length / 2)  # Start from right edge
                 x2 = -int(text_length / 2)      # End at left edge
                 y = get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, roll_array)
@@ -174,6 +219,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             line = f"Dialogue: {layer},{start_time},{end_time},{style},,0000,0000,0000,,{{{effect}}}{{{color_text}}}{text}\n"
             f.write(line)
+        
+    sc_list = []
+    for sc in root.findall('.//sc'):
+        appear_time = float(sc.get('ts'))
+        user_name = sc.get('user')
+        price = sc.get('price')
+        disapper_time = float(sc.get('ts')) + float(sc.get('time'))
+        text = sc.text
+        processed_text, line_num = get_text_line_num(text)
+        sc_height, _, btm_box_height = get_sc_height(line_num)
+        process = ""
+        sc_list.append([appear_time, disapper_time, sc_height, user_name, price, processed_text, btm_box_height, process])
+    
+    draw_superchat(sc_list, ass_file)
+
 
 def main():
     xml_file = "sample.xml"
