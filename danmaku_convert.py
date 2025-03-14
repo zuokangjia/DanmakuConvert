@@ -132,12 +132,12 @@ def draw_superchat(data, ass_path):
                 current_time = float(time)
                 # the shift height
                 height_change = float(delta_y[1:])
+                SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
                 if delta_y[0] == '-':
                     current_y -= height_change
                 else:
                     current_y += height_change
                 print(f"Time {time}: y = {current_y}")
-                SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
         prev_time = current_time
         current_time = end
         SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
