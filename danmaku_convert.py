@@ -143,8 +143,8 @@ def draw_superchat(data, ass_path):
         SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
 
 def extract_gift_data(element):
-    """统一提取礼物和守护的公共属性"""
-    fixed_time = 2 #礼物弹幕停留的时间
+    """extract the common attributes of gifts and guards"""
+    fixed_time = 2 # the time of gift danmaku
     data = {
         'appear_time': float(element.get('ts')),
         'over_time': float(element.get('ts')) + fixed_time,  
@@ -160,11 +160,11 @@ def extract_gift_data(element):
     return data
 
 def merge_gifts(giftlist, merge_interval=5):
-    """合并相同用户、相同礼物且时间间隔小于5秒的记录"""
+    """merge the same user, same gift and the time interval is less than 5 seconds"""
     if not giftlist:
         return []
 
-    # 按用出现时间排序
+    # sort by the appear time
     giftlist.sort(key=lambda x: (x['appear_time']))
     
     merged = []
@@ -175,7 +175,7 @@ def merge_gifts(giftlist, merge_interval=5):
             gift['name'] == current['name'] and
             gift['appear_time'] - current['appear_time'] < merge_interval):
             current['count'] += gift['count']
-            current['over_time'] = gift['over_time']  # 保留最后一个时间
+            current['over_time'] = gift['over_time']  # keep the last time
         else:
             merged.append(current)
             current = gift.copy()
@@ -184,9 +184,11 @@ def merge_gifts(giftlist, merge_interval=5):
 
 def adjust_time_conflicts(gifts, max_overlap=5, interval=0.2):
     """
-        处理时间完全相同的礼物，通过间隔避免重叠
-        max_overlap:相同一秒最多保留几个礼物
-        interval:后延的时间间隔
+        handle the gift danmaku with the same time, avoid overlapping by interval
+    
+    Args:
+        max_overlap: the max number of the same time gift danmaku
+        interval: the interval time
     """
     processed = []
     last_time = -float('inf')
@@ -196,7 +198,7 @@ def adjust_time_conflicts(gifts, max_overlap=5, interval=0.2):
         if gift['appear_time'] == last_time:
             overlap_count += 1
             if overlap_count >= max_overlap:
-                continue  # 丢弃超过5个的冲突
+                continue  # discard the gift danmaku with more than 5 conflicts
             delta = interval * overlap_count
         else:
             overlap_count = 0
@@ -206,51 +208,51 @@ def adjust_time_conflicts(gifts, max_overlap=5, interval=0.2):
         adjusted['appear_time'] += delta
         adjusted['over_time'] += delta
         processed.append(adjusted)
-        last_time = gift['appear_time']  # 注意保留原始时间用于比较
+        last_time = gift['appear_time']  # keep the original time for comparison
         
     return processed
 
 def calculate_moves(gifts):
-    """计算每个礼物需要移动的时间和位置"""
-    # 生成事件流
+    """calculate the time and position of each gift"""
+    # generate the event stream
     events = []
     for idx, gift in enumerate(gifts):
         events.append((gift['appear_time'], 'start', idx))
         events.append((gift['over_time'], 'end', idx))
-    events.sort(key=lambda x: (x[0], x[1] == 'start'))  # 确保end事件优先处理
+    events.sort(key=lambda x: (x[0], x[1] == 'start'))  # ensure the end event is processed first
     
-    # 状态跟踪
+    # status tracking
     active = []
     max_layers = 2
     
     for time, event_type, idx in events:
         if event_type == 'start':
-            # 触发现有活跃项的移动
+            # trigger the move of the existing active item
             for active_idx in active:
                 gift = gifts[active_idx]
                 gift['move'] += 1
                 gift['height'] += 1
                 
-                # 记录关键时间点
+                # record the key time points
                 if gift['move'] == 1:
                     gift['move_time'] = time
                 elif gift['move'] == 2:
                     gift['disappear_time'] = time
                     
-            # 添加新活跃项
+            # add the new active item
             active.append(idx)
             if len(active) > max_layers:
-                # 移除最早的一个
+                # remove the earliest one
                 expired = active.pop(0)
                 
-        else:  # end事件
+        else:  # end event
             if idx in active:
                 active.remove(idx)
                 
     return gifts
 
 def generate_ass_line(gift, resolution_y, font_size):
-    """生成单条ASS字幕"""
+    """generate a single ASS line"""
    
     appear_time = gift['appear_time']
     over_time = gift['over_time']
@@ -266,27 +268,26 @@ def generate_ass_line(gift, resolution_y, font_size):
     gift_user = f"{{{color_text}\\b1}}{gift['user']}:{{{color_text}\\b0}}"
     giftname_out = f"{gift['name']} x{gift['count']}"
         
-    move_status = gift['move']  # 移动次数
+    move_status = gift['move']  # the number of moves
     
-    # 一次移动，上方提前消失
+    # one move, the upper one disappears earlier
     if move_status == 2:
         line0 = print_gift_2_ass(start_time,mid_time,resolution_y-1*font_size,gift_user,giftname_out)
         line1 = print_gift_2_ass(mid_time,dis_time,resolution_y-2*font_size,gift_user,giftname_out)
 
         return (line0 + line1)
-    # 一次移动，上方不提前消失
+    # one move, the upper one does not disappear earlier
     elif move_status == 1:
         line0 = print_gift_2_ass(start_time,mid_time,resolution_y-1*font_size,gift_user,giftname_out)
         line1 = print_gift_2_ass(mid_time,end_time,resolution_y-2*font_size,gift_user,giftname_out)
         return (line0 + line1)
-    # 一次移动
+    # one move
     elif move_status == 0:
         line = print_gift_2_ass(start_time,end_time,resolution_y-1*font_size,gift_user,giftname_out)
         return line
 
 def print_gift_2_ass(start_time,end_time,height,gift_user,giftname_out):
     # gift danmakus print to ass
-    # 我不知道layer应该是什么，你再改吧
     layer = 0
     style = "message_box"
     
@@ -375,14 +376,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         # Gifts danmakus and Guard danmakus
         raw_gifts = [extract_gift_data(e) for e in root.iter() if e.tag in ('gift', 'guard')]
         
-        # 数据处理流水线    
+        # data processing pipeline    
         processed = merge_gifts(raw_gifts)
         processed = adjust_time_conflicts(processed)
         processed = calculate_moves(processed)
         
-        # 生成输出
+        # generate the output
         for gift in processed:
-            lines = generate_ass_line(gift, resolution_y, font_size)  # 示例参数
+            lines = generate_ass_line(gift, resolution_y, font_size)  # example parameters
             f.writelines(lines)
 
     sc_list = []
@@ -402,7 +403,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 def main():
     xml_file = "sample.xml"
-    ass_file = "converted.ass"
+    ass_file = "converted_gift.ass"
     roll_array = DanmakuArray(720, 1280)
     btm_array = DanmakuArray(720, 1280)
     convert_xml_to_ass(38, 720, 1280, xml_file, ass_file, roll_array, btm_array)
