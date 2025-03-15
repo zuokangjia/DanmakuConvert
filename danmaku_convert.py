@@ -3,7 +3,7 @@ import math
 import xml.etree.ElementTree as ET
 from danmaku_array import DanmakuArray
 from superchat import SuperChat
-from utils import format_time, get_str_len
+from utils import format_time, get_str_len, get_color
 
 # R2L danmaku algorithm
 def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, array):
@@ -142,6 +142,158 @@ def draw_superchat(data, ass_path):
         current_time = end
         SuperChat(prev_time, current_time, user_name, price, btm_box_height, current_y, text).write_superchat(ass_path)
 
+def extract_gift_data(element):
+    """统一提取礼物和守护的公共属性"""
+    fixed_time = 2 #礼物弹幕停留的时间
+    data = {
+        'appear_time': float(element.get('ts')),
+        'over_time': float(element.get('ts')) + fixed_time,  
+        'user': element.get('user'),
+        'name': element.get('giftname'),
+        'count': int(element.get('giftcount' if element.tag=='gift' else 'count')), 
+        'price': element.get('price'),
+        'move': 0,
+        'height': 0,
+        'move_time': -1,
+        'disappear_time': -2
+    }
+    return data
+
+def merge_gifts(giftlist, merge_interval=5):
+    """合并相同用户、相同礼物且时间间隔小于5秒的记录"""
+    if not giftlist:
+        return []
+
+    # 按用出现时间排序
+    giftlist.sort(key=lambda x: (x['appear_time']))
+    
+    merged = []
+    current = giftlist[0].copy()
+    
+    for gift in giftlist[1:]:
+        if (gift['user'] == current['user'] and
+            gift['name'] == current['name'] and
+            gift['appear_time'] - current['appear_time'] < merge_interval):
+            current['count'] += gift['count']
+            current['over_time'] = gift['over_time']  # 保留最后一个时间
+        else:
+            merged.append(current)
+            current = gift.copy()
+    merged.append(current)
+    return merged
+
+def adjust_time_conflicts(gifts, max_overlap=5, interval=0.2):
+    """
+        处理时间完全相同的礼物，通过间隔避免重叠
+        max_overlap:相同一秒最多保留几个礼物
+        interval:后延的时间间隔
+    """
+    processed = []
+    last_time = -float('inf')
+    overlap_count = 0
+    
+    for gift in sorted(gifts, key=lambda x: x['appear_time']):
+        if gift['appear_time'] == last_time:
+            overlap_count += 1
+            if overlap_count >= max_overlap:
+                continue  # 丢弃超过5个的冲突
+            delta = interval * overlap_count
+        else:
+            overlap_count = 0
+            delta = 0
+            
+        adjusted = gift.copy()
+        adjusted['appear_time'] += delta
+        adjusted['over_time'] += delta
+        processed.append(adjusted)
+        last_time = gift['appear_time']  # 注意保留原始时间用于比较
+        
+    return processed
+
+def calculate_moves(gifts):
+    """计算每个礼物需要移动的时间和位置"""
+    # 生成事件流
+    events = []
+    for idx, gift in enumerate(gifts):
+        events.append((gift['appear_time'], 'start', idx))
+        events.append((gift['over_time'], 'end', idx))
+    events.sort(key=lambda x: (x[0], x[1] == 'start'))  # 确保end事件优先处理
+    
+    # 状态跟踪
+    active = []
+    max_layers = 2
+    
+    for time, event_type, idx in events:
+        if event_type == 'start':
+            # 触发现有活跃项的移动
+            for active_idx in active:
+                gift = gifts[active_idx]
+                gift['move'] += 1
+                gift['height'] += 1
+                
+                # 记录关键时间点
+                if gift['move'] == 1:
+                    gift['move_time'] = time
+                elif gift['move'] == 2:
+                    gift['disappear_time'] = time
+                    
+            # 添加新活跃项
+            active.append(idx)
+            if len(active) > max_layers:
+                # 移除最早的一个
+                expired = active.pop(0)
+                
+        else:  # end事件
+            if idx in active:
+                active.remove(idx)
+                
+    return gifts
+
+def generate_ass_line(gift, resolution_y, font_size):
+    """生成单条ASS字幕"""
+   
+    appear_time = gift['appear_time']
+    over_time = gift['over_time']
+    move_time = gift['move_time']
+    disappear_time = gift['disappear_time']
+
+    start_time = format_time(appear_time)
+    end_time = format_time(over_time)
+    mid_time = format_time(move_time)
+    dis_time = format_time(disappear_time)
+
+    color_text = get_color(int(gift['price']))[2]
+    gift_user = f"{{{color_text}\\b1}}{gift['user']}:{{{color_text}\\b0}}"
+    giftname_out = f"{gift['name']} x{gift['count']}"
+        
+    move_status = gift['move']  # 移动次数
+    
+    # 一次移动，上方提前消失
+    if move_status == 2:
+        line0 = print_gift_2_ass(start_time,mid_time,resolution_y-1*font_size,gift_user,giftname_out)
+        line1 = print_gift_2_ass(mid_time,dis_time,resolution_y-2*font_size,gift_user,giftname_out)
+
+        return (line0 + line1)
+    # 一次移动，上方不提前消失
+    elif move_status == 1:
+        line0 = print_gift_2_ass(start_time,mid_time,resolution_y-1*font_size,gift_user,giftname_out)
+        line1 = print_gift_2_ass(mid_time,end_time,resolution_y-2*font_size,gift_user,giftname_out)
+        return (line0 + line1)
+    # 一次移动
+    elif move_status == 0:
+        line = print_gift_2_ass(start_time,end_time,resolution_y-1*font_size,gift_user,giftname_out)
+        return line
+
+def print_gift_2_ass(start_time,end_time,height,gift_user,giftname_out):
+    # gift danmakus print to ass
+    # 我不知道layer应该是什么，你再改吧
+    layer = 0
+    style = "message_box"
+    
+    effect_stay = f"\\pos(100,{height})"
+    line = f"Dialogue: {layer},{start_time},{end_time},{style},,0000,0000,0000,,{{{effect_stay}}}{gift_user}{giftname_out}\n"
+    return line
+
 def convert_xml_to_ass(font_size, resolution_x, resolution_y, xml_file, ass_file, roll_array, btm_array):
     # Parse XML
     tree = ET.parse(xml_file)
@@ -219,7 +371,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             
             line = f"Dialogue: {layer},{start_time},{end_time},{style},,0000,0000,0000,,{{{effect}}}{{{color_text}}}{text}\n"
             f.write(line)
+
+        # Gifts danmakus and Guard danmakus
+        raw_gifts = [extract_gift_data(e) for e in root.iter() if e.tag in ('gift', 'guard')]
         
+        # 数据处理流水线    
+        processed = merge_gifts(raw_gifts)
+        processed = adjust_time_conflicts(processed)
+        processed = calculate_moves(processed)
+        
+        # 生成输出
+        for gift in processed:
+            lines = generate_ass_line(gift, resolution_y, font_size)  # 示例参数
+            f.writelines(lines)
+
     sc_list = []
     for sc in root.findall('.//sc'):
         appear_time = float(sc.get('ts'))
