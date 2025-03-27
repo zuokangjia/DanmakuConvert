@@ -20,10 +20,9 @@ def get_text_line_num(text):
     return result_text, line_num
 
 
-def get_sc_height(line_num, sc_font_size=38):
-    radius = sc_font_size / 2
-    top_box_height = math.ceil(sc_font_size + sc_font_size * (4.0 / 5.0) + radius / 2)
-    btm_box_height = math.ceil(line_num * sc_font_size + radius / 2)
+def get_sc_height(line_num, sc_font_size):
+    top_box_height = sc_font_size * 1.8
+    btm_box_height = math.ceil(line_num * sc_font_size)
     sc_height = btm_box_height + top_box_height
     return sc_height, top_box_height, btm_box_height
 
@@ -40,7 +39,7 @@ def draw_superchat(ass_file, font_size, resolution_y, root):
         disapper_time = float(sc.get("ts")) + float(sc.get("time"))
         text = sc.text
         processed_text, line_num = get_text_line_num(text)
-        sc_height, _, btm_box_height = get_sc_height(line_num)
+        sc_height, _, btm_box_height = get_sc_height(line_num, font_size)
         process = ""
         sc_list.append(
             [
@@ -151,6 +150,7 @@ def render_superchat(ass_file, font_size, resolution_y, data):
                     current_y,
                     previous_y,
                     text,
+                    font_size,
                 ).write_superchat(ass_file)
                 previous_y = current_y
                 if delta_y[0] == "-":
@@ -169,4 +169,5 @@ def render_superchat(ass_file, font_size, resolution_y, data):
             current_y,
             previous_y,
             text,
+            font_size,
         ).write_superchat(ass_file)
