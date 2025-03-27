@@ -16,8 +16,8 @@
 - 更高效的弹幕排列方式。详见 [issue](https://github.com/hihkm/DanmakuFactory/issues/104#issuecomment-2716857788)。
 - 移除 [FFmpeg无法渲染的 emoji 符号](https://trac.ffmpeg.org/ticket/5777)。
 - 支持不同操作系统，通过Python实现跨平台。
-- 不需要任何第三方库。
-- 支持不同分辨率。
+- 没有任何第三方依赖库。
+- 根据不同分辨率动态调整 superchat 大小。
 - 支持不同字体大小。
 - 支持不同颜色。
 - 支持一些持久化预设的参数（Work In Progress）。

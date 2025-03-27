@@ -18,8 +18,8 @@ The python implementation of the [DanmakuFactory](https://github.com/hihkm/Danma
 - More efficient arrangement of danmaku. See the [issue](https://github.com/hihkm/DanmakuFactory/issues/104#issuecomment-2716857788).
 - Remove the abundant emojis which [cannot be rendered by ffmpeg](https://trac.ffmpeg.org/ticket/5777).
 - Support different kinds of OS with Python.
-- Do not require any third-party libraries.
-- Support different resolutions.
+- No third-party libraries.
+- Dynamically adjust the size of superchat according to different resolutions.
 - Support different font sizes.
 - Support different colors.
 - Support some persistence preset parameter sets.(WIP)
