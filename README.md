@@ -341,10 +341,10 @@ XML 文件中的 `fontSizeInXml` 是弹幕的 `size`。因此，在简单版本�
 def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time, array):
     velocity = (text_length + resolution_x) / roll_time
     best_row = 0
-    best_bias = float('-inf')
+    best_bias = float("-inf")
     for i in range(array.rows):
         previous_appear_time = array.get_time(i)
-        if previous_appear_time == 0:
+        if previous_appear_time < 0:
             array.set_time_length(i, appear_time, text_length)
             return 1 + i * font_size
         previous_length = array.get_length(i)
@@ -352,7 +352,9 @@ def get_position_y(font_size, appear_time, text_length, resolution_x, roll_time,
         delta_velocity = velocity - previous_velocity
         # abs_velocity = abs(delta_velocity)
         # The initial difference length
-        delta_x = (appear_time - previous_appear_time) * previous_velocity - (previous_length + text_length) / 2
+        delta_x = (appear_time - previous_appear_time) * previous_velocity - (
+            previous_length + text_length
+        ) / 2
         # If the initial difference length is negative, which means overlapped. Skip.
         if delta_x < 0:
             continue
@@ -382,7 +384,7 @@ def get_fixed_y(font_size, appear_time, resolution_y, array):
     best_bias = -1 # record the best bias
     for i in range(array.rows):
         previous_appear_time = array.get_time(i)
-        if previous_appear_time == 0:
+        if previous_appear_time < 0:
             array.set_time_length(i, appear_time, 0)
             return resolution_y - font_size * (i + 1) + 1 # return the bottom line of the screen.
         else:
