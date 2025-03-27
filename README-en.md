@@ -17,12 +17,12 @@ The python implementation of the [DanmakuFactory](https://github.com/hihkm/Danma
 - Convert XML danmaku to ASS danmaku.
 - More efficient arrangement of danmaku. See the [issue](https://github.com/hihkm/DanmakuFactory/issues/104#issuecomment-2716857788).
 - Remove the abundant emojis which [cannot be rendered by ffmpeg](https://trac.ffmpeg.org/ticket/5777).
-- Support different kinds of OS with Python.
-- No third-party libraries.
 - Dynamically adjust the size of superchat according to different resolutions.
-- Support different font sizes.
-- Support different colors.
-- Support some persistence preset parameter sets.(WIP)
+- Support different font sizes and superchat font sizes.
+- Support different colors of superchat and time distinction.
+- Support different OS, implemented by Python.
+- No third-party libraries. No need to consider the compatibility between dependencies.
+- Support mobile native live room rendering(Work In Progress).
 - More features will be added in the future, if you have any suggestions, welcome to [open an issue](https://github.com/timerring/DanmakuConvert/issues).
 
 ## The result display
