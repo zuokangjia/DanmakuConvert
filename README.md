@@ -15,17 +15,19 @@
 - 将XML弹幕转换为ASS弹幕。
 - 更高效的弹幕排列方式。详见 [issue](https://github.com/hihkm/DanmakuFactory/issues/104#issuecomment-2716857788)。
 - 移除 [FFmpeg无法渲染的 emoji 符号](https://trac.ffmpeg.org/ticket/5777)。
-- 根据不同分辨率动态调整 superchat 大小。
-- 支持不同字体大小及 superchat 字体大小。
+- 支持不同字体大小及 superchat 字体大小(根据 superchat 字体大小动态调整 superchat 框大小)。
+- 支持不同分辨率的自适应布局。
 - 支持不同金额的 superchat 颜色及时间区分。
 - 支持不同操作系统，通过Python实现跨平台。
 - 没有任何第三方依赖库，无需考虑版本兼容(Python >= 3.6)。
-- 支持移动端原生直播间渲染(Work In Progress)。
+- 支持移动端原生直播间渲染(dev)。
 - 未来将添加更多功能，如果您有任何优化或者改进建议，欢迎 [提交 issue](https://github.com/timerring/DanmakuConvert/issues)。
 
 ## 成果展示
 
-![](https://cdn.jsdelivr.net/gh/timerring/scratchpad2023/2024/2025-03-23-15-38-54.jpg)
+![](https://cdn.jsdelivr.net/gh/timerring/scratchpad2023/2024/2025-03-31-23-27-09.png)
+
+支持各种分辨率的渲染，例如从左往右依次是常见的 720x1280, 1080x1920, 1920x1080, 1280x720 分辨率的渲染效果图。（可自行调整弹幕及 superchat 字体及渲染框大小）
 
 ## 安装
 
