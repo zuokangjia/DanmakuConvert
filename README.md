@@ -29,6 +29,13 @@
 
 支持各种分辨率的渲染，例如从左往右依次是常见的 720x1280, 1080x1920, 1920x1080, 1280x720 分辨率的渲染效果图。（可自行调整弹幕及 superchat 字体及渲染框大小）
 
+推荐一些常见渲染参数：
+
+- 720x1280 `dmconvert -f 38 -sf 30 -x 720 -y 1280 -i sample.xml -o output.ass`
+- 1280x720 `dmconvert -f 38 -sf 30 -x 1280 -y 720 -i sample.xml -o output.ass`
+- 1080x1920 `dmconvert -f 42 -sf 42 -x 1080 -y 1920 -i sample.xml -o output.ass`
+- 1920x1080 `dmconvert -f 42 -sf 42 -x 1920 -y 1080 -i sample.xml -o output.ass`
+
 ## 安装
 
 ```bash

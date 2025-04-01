@@ -31,6 +31,13 @@ The python implementation of the [DanmakuFactory](https://github.com/hihkm/Danma
 
 Supports rendering at various resolutions, with example images from left to right showing common resolutions of 720x1280, 1080x1920, 1920x1080, and 1280x720. （You can adjust the font size of danmaku and superchat, and the size of the rendering box）
 
+Some common rendering parameters:
+
+- 720x1280 `dmconvert -f 38 -sf 30 -x 720 -y 1280 -i sample.xml -o output.ass`
+- 1280x720 `dmconvert -f 38 -sf 30 -x 1280 -y 720 -i sample.xml -o output.ass`
+- 1080x1920 `dmconvert -f 42 -sf 42 -x 1080 -y 1920 -i sample.xml -o output.ass`
+- 1920x1080 `dmconvert -f 42 -sf 42 -x 1920 -y 1080 -i sample.xml -o output.ass`
+
 ## Installation
 
 ```bash
