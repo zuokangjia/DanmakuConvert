@@ -12,15 +12,19 @@ def cli():
     parser = argparse.ArgumentParser(
         prog="dmconvert",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent('''
+        description=textwrap.dedent(
+            """
         The Python toolkit package and cli designed for convert danmaku from xml to ass format.
         Source code at https://github.com/timerring/DanmakuConvert
-        '''),
-        epilog=textwrap.dedent('''
+        """
+        ),
+        epilog=textwrap.dedent(
+            """
         Example:
         dmconvert -i input.xml -o output.ass
         dmconvert -f 38 -sf 30 -x 1920 -y 1080 -i input.xml -o output.ass
-        '''),
+        """
+        ),
     )
     parser.add_argument(
         "-V",
@@ -66,7 +70,11 @@ def cli():
 
     if os.path.splitext(args.xml)[1] == ".xml":
         xml_file = os.path.abspath(args.xml)
-        ass_file = os.path.abspath(args.ass) if args.ass else os.path.abspath(os.path.splitext(xml_file)[0] + ".ass")
+        ass_file = (
+            os.path.abspath(args.ass)
+            if args.ass
+            else os.path.abspath(os.path.splitext(xml_file)[0] + ".ass")
+        )
         convert_xml_to_ass(
             args.fontsize,
             args.scfontsize,

@@ -136,11 +136,15 @@ class SuperChat:
         upper_box_position_y = self.position_y
         user_name_position_y = upper_box_position_y + int(self.sc_font_size / 6)
         superchat_price_position_y = user_name_position_y + self.sc_font_size * 0.8
-        lower_box_position_y = upper_box_position_y + self.sc_font_size * 1.8 # top_box_height
+        lower_box_position_y = (
+            upper_box_position_y + self.sc_font_size * 1.8
+        )  # top_box_height
 
         pre_upper_box_position_y = self.previous_y
         pre_user_name_position_y = pre_upper_box_position_y + int(self.sc_font_size / 6)
-        pre_superchat_price_position_y = pre_user_name_position_y + self.sc_font_size * 0.8
+        pre_superchat_price_position_y = (
+            pre_user_name_position_y + self.sc_font_size * 0.8
+        )
         pre_lower_box_position_y = pre_upper_box_position_y + self.sc_font_size * 1.8
 
         effect_upper_box_move = (
@@ -153,7 +157,9 @@ class SuperChat:
         effect_lower_box_move = (
             f"\\move(10,{pre_lower_box_position_y},10,{lower_box_position_y})"
         )
-        effect_superchat_msg_move = f"\\move(20,{pre_lower_box_position_y},20,{lower_box_position_y})"
+        effect_superchat_msg_move = (
+            f"\\move(20,{pre_lower_box_position_y},20,{lower_box_position_y})"
+        )
 
         with open(ass_path, "a", encoding="utf-8") as f:
             f.write(
